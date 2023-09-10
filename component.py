@@ -15,7 +15,8 @@ class Disk:
     logger = logging.getLogger("sim")
 
     def __init__(self, disk_fail_parms=(1, 461386,0), disk_repair_parms=(1,12,0),
-            disk_lse_parms=(0.000108), disk_scrubbing_parms=(3,168.0,6)):
+            disk_lse_parms=(0.000108), disk_scrubbing_parms=(3,168.0,6),
+            disk_throughput=1, repair_bandwidth_percentage=0.5, disk_size=1, array_size=1):
 
         self.logger.debug("Disk: disk_fail_parms = %s, disk_repair_parms = %s, \
 disk_lse_parms = %s, disk_scrubbing_parms = %s" % 
@@ -31,6 +32,18 @@ disk_lse_parms = %s, disk_scrubbing_parms = %s" %
         (rate) = disk_lse_parms
         self.disk_lse_dist = Poisson(rate)
 
+        # self.rebuild_bandwidth = max(disk_throughput, array_size * (disk_throughput * repair_bandwidth_percentage))
+    
+        # # Calculate the time to rebuild the disk based on its size and bandwidth
+        # self.rebuild_time = disk_size / (self.rebuild_bandwidth )
+        # print(self.rebuild_time)
+        rebuild_bandwidth = max(disk_throughput, array_size * (disk_throughput * repair_bandwidth_percentage))
+
+        # Convert disk size from GB to MB
+        disk_size_mb = disk_size * 1024
+
+        # Calculate the time to rebuild the disk in seconds
+        self.rebuild_time = (disk_size_mb / rebuild_bandwidth) 
         # When will the disk be repaired
         self.repair_time = 0
         # When the repair starts
@@ -64,6 +77,7 @@ disk_lse_parms = %s, disk_scrubbing_parms = %s" %
         self.state = Disk.DISK_STATE_OK
 
         self.fail_time = self.disk_fail_dist.draw() + self.repair_time
+        # print(self.fail_time)
         self.repair_time = 0
         self.repair_start_time = 0
         return self.fail_time
@@ -71,7 +85,10 @@ disk_lse_parms = %s, disk_scrubbing_parms = %s" %
     def fail(self):
         self.state = Disk.DISK_STATE_FAILED
 
-        self.repair_time = self.disk_repair_dist.draw() + self.fail_time
+        # self.repair_time = self.disk_repair_dist.draw() + self.fail_time
+        self.repair_time = self.rebuild_time + self.fail_time
+        # print(self.rebuild_time)
+        # print(self.disk_repair_dist.draw())
         self.repair_start_time = self.fail_time 
         self.fail_time = 0
         return self.repair_time
@@ -90,7 +107,8 @@ class Raid:
 
     # A RAID consists of many disks
     def __init__(self, raid_type, disk_capacity, disk_fail_parms,
-            disk_repair_parms, disk_lse_parms, disk_scrubbing_parms):
+            disk_repair_parms, disk_lse_parms, disk_scrubbing_parms,
+            disk_throughput, repair_bandwidth_percentage, disk_size, array_size):
         # default is "mds_7_1"
         (self.type, d, p) = raid_type.split("_");
         self.data_fragments = int(d)
@@ -102,7 +120,8 @@ class Raid:
         self.logger.debug("RAID: raid_type = %s, data = %d, parity = %d, disk_capacity = %d" % (self.type, self.data_fragments, self.parity_fragments, self.disk_capacity))
 
         self.disks = [Disk(disk_fail_parms, disk_repair_parms,
-            disk_lse_parms, disk_scrubbing_parms) for i in range(self.data_fragments + self.parity_fragments)]
+            disk_lse_parms, disk_scrubbing_parms,
+            disk_throughput, repair_bandwidth_percentage, disk_size, array_size) for i in range(self.data_fragments + self.parity_fragments)]
 
         # the number of failed disks
         # > 0 indicates the RAID is degraded
@@ -202,17 +221,20 @@ class Raid:
     def update_to_event(self, event_time, disk_idx):
         event_type = 0
         next_event_time = 0
+        rebuild_time = 0
 
         if self.disks[disk_idx].is_failure() == True:
             next_event_time = self.upgrade(disk_idx)
             event_type = Disk.DISK_EVENT_REPAIR
+            rebuild_time = self.disks[disk_idx].rebuild_time
         else:
             next_event_time = self.degrade(disk_idx)
             if self.failed_disk_count >= self.parity_fragments:
                 self.calc_critical_region(event_time)
             event_type = Disk.DISK_EVENT_FAIL
+            rebuild_time = self.disks[disk_idx].rebuild_time
 
-        return (event_type, next_event_time)
+        return (event_type, next_event_time,rebuild_time)
 
 def test():
     d = Disk()
@@ -227,7 +249,7 @@ def test():
     while t < 1000000000.0:
         i += 1
         (e, t) = d.get_next_event()
-        print e,t
+        print(e,t)
         if e == Disk.DISK_EVENT_FAIL:
             d.fail(t)
             fail_time += t - last_t
@@ -237,7 +259,7 @@ def test():
         else:
             exit(2)
         last_t = t
-    print i, fail_time, repair_time, fail_time/i*2, repair_time/i*2
+    print(i, fail_time, repair_time, fail_time/i*2, repair_time/i*2)
 
 if __name__ == "__main__":
     test()

@@ -21,9 +21,9 @@ class Samples:
     #
     def __init__(self):
 
-        self.value_sum = 0L
-        self.value2_sum = 0L
-        self.prob_sum = 0L
+        self.value_sum = 0
+        self.value2_sum = 0
+        self.prob_sum = 0
 
         self.num_samples = 0
 
@@ -66,7 +66,7 @@ class Samples:
             self.value2_sum += pow(sample, 2)
             self.prob_sum += 1
 
-        self.num_samples += 1L
+        self.num_samples += 1
 
     def addZeros(self, num):
         self.num_samples += long(num)
@@ -97,7 +97,7 @@ class Samples:
     def calcConfInterval(self, conf_level):
         
         if conf_level not in self.conf_lvl_lku.keys():
-            print "%s not a valid confidence level!" % conf_level
+            print("%s not a valid confidence level!" % conf_level)
             return None
     
         self.calcStdDev()
@@ -141,14 +141,14 @@ def test():
     s = Samples(1000)    
     s.calcResults("0.9", samples)
         
-    print "Mean: %s (%s): " % (s.calcMean(), mean)
-    print "Std Dev: %s (%s): " % (s.calcStdDev(), std_dev)
-    print "Conf. Interval: (%s, %s)" % s.calcConfInterval("0.995")
+    print("Mean: %s (%s): " % (s.calcMean(), mean))
+    print("Std Dev: %s (%s): " % (s.calcStdDev(), std_dev))
+    print("Conf. Interval: (%s, %s)" % s.calcConfInterval("0.995"))
 
     (a,b,c,d) = s.getResults()
-    print "Mean: %s (%s): " % (a, mean)
-    print "Conf. Interval: (%s, %s)" % (b,c)
-    print "Relative Error: (%s)" % d
+    print("Mean: %s (%s): " % (a, mean))
+    print("Conf. Interval: (%s, %s)" % (b,c))
+    print("Relative Error: (%s)" % d)
 
 if __name__ == "__main__":
     test()    

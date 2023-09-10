@@ -250,10 +250,13 @@ class System:
 	#RESULT_SECTORS_LOST = 2 #"Sectors Lost"
 
 	logger = logging.getLogger("sim")
+	
 
 	# A system consists of many RAIDs
 	def __init__(self, mission_time, raid_type, raid_num, disk_capacity, 
-			disk_fail_parms, disk_repair_parms, disk_lse_parms, disk_scrubbing_parms, trace, filelevel, dedup, weighted):
+			disk_fail_parms, disk_repair_parms, disk_lse_parms, disk_scrubbing_parms,
+			disk_throughput, repair_bandwidth_percentage, disk_size, array_size, 
+			trace, filelevel, dedup, weighted):
 		self.mission_time = mission_time
 		self.raid_num = raid_num
 		self.avail_raids = raid_num
@@ -263,7 +266,8 @@ class System:
 		self.event_queue = None
 
 		self.raids = [Raid(raid_type, disk_capacity, disk_fail_parms,
-			disk_repair_parms, disk_lse_parms, disk_scrubbing_parms) for i in range(raid_num)]
+			disk_repair_parms, disk_lse_parms, disk_scrubbing_parms,
+			disk_throughput, repair_bandwidth_percentage, disk_size, array_size) for i in range(raid_num)]
 
 		if filelevel == False:
 			if dedup == False:
@@ -307,13 +311,14 @@ class System:
 				break
 
 		# After update, the system state is consistent
-		(event_type, next_event_time) = self.raids[raid_idx].update_to_event(event_time, disk_idx)
+		(event_type, next_event_time, rebuild_time) = self.raids[raid_idx].update_to_event(event_time, disk_idx)
+		if event_type == "event disk fail":
+			print(event_type, next_event_time, rebuild_time)
 		if next_event_time <= self.mission_time:
 			self.event_queue.append((next_event_time, disk_idx, raid_idx))
 			size = len(self.event_queue)
 			if size >= 2 and self.event_queue[size - 1] > self.event_queue[size - 2]:
-				self.event_queue = sorted(self.event_queue, reverse=True)
-				#print event_type, self.event_queue
+				self.event_queue = sorted(self.event_queue, reverse=True)				
 
 		self.logger.debug("raid_idx = %d, disk_idx = %d, event_type = %s, event_time = %d" % (raid_idx, disk_idx, event_type, event_time))
 		return (event_type, event_time, raid_idx)

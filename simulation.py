@@ -11,8 +11,9 @@ class Simulation:
     logger = logging.getLogger("sim")
 
     def __init__(self, mission_time, iterations, raid_type, raid_num, disk_capacity, 
-            disk_fail_parms, disk_repair_parms, disk_lse_parms, disk_scrubbing_parms, force_re, required_re, 
-            fs_trace, filelevel, dedup, weighted, output_file):
+            disk_fail_parms, disk_repair_parms, disk_lse_parms, disk_scrubbing_parms, 
+            disk_throughput, repair_bandwidth_percentage, disk_size, array_size,  
+            force_re, required_re, fs_trace, filelevel, dedup, weighted, output_file):
         self.mission_time = mission_time
         self.iterations = iterations
         self.raid_type = raid_type
@@ -22,6 +23,10 @@ class Simulation:
         self.disk_repair_parms = disk_repair_parms
         self.disk_lse_parms = disk_lse_parms
         self.disk_scrubbing_parms = disk_scrubbing_parms
+        self.disk_throughput = disk_throughput
+        self.repair_bandwidth_percentage = repair_bandwidth_percentage
+        self.disk_size = disk_size
+        self.array_size = array_size
 
         self.logger.debug("Simulation: iterations = %d" % iterations)
 
@@ -38,8 +43,8 @@ class Simulation:
         self.systems_with_lse = 0
         self.systems_with_data_loss = 0
 
-        self.cur_i = 0L
-        self.more_iterations = 0L
+        self.cur_i = 0
+        self.more_iterations = 0
 
         self.fs_trace = fs_trace
         self.filelevel = filelevel 
@@ -61,12 +66,13 @@ class Simulation:
         return (d, h, m, s)
 
     def run_iterations(self, iterations):
-        for self.cur_i in xrange(iterations):
+        for self.cur_i in range(iterations):
 
             if (self.cur_i & 16383) == 0:
                 progress = 1.0*self.cur_i/self.iterations
                 num = int(progress * 100)
-                print >> sys.stderr,  "%6.2f%%: [" % (progress*100), "\b= "*num, "\b\b>", " "*(100-num), "\b\b]", "%3dd%2dh%2dm%2ds \r"% self.get_runtime(),
+                print("%6.2f%%: [" % (progress*100), "\b= "*num, "\b\b>", " "*(100-num), "\b\b]", "%3dd%2dh%2dm%2ds \r" % self.get_runtime(), file=sys.stderr, end='')
+
 
             self.system.reset()
         
@@ -95,12 +101,14 @@ class Simulation:
             self.raid_failure_samples.addSample(result[0])
             self.lse_samples.addSample(result[1])
 
-        print >> sys.stderr,  "%6.2f%%: [" % (100.0), "\b= "*100, "\b\b>", "\b]", "%3dd%2dh%2dm%2ds"% self.get_runtime() 
+        print("%6.2f%%: [" % (100.0), "\b= "*100, "\b\b>", "\b]", "%3dd%2dh%2dm%2ds" % self.get_runtime(), file=sys.stderr) 
 
     def simulate(self):
 
         self.system = System(self.mission_time, self.raid_type, self.raid_num, self.disk_capacity, self.disk_fail_parms,
-            self.disk_repair_parms, self.disk_lse_parms, self.disk_scrubbing_parms, self.fs_trace, self.filelevel, self.dedup, self.weighted)
+            self.disk_repair_parms, self.disk_lse_parms, self.disk_scrubbing_parms,
+            self.disk_throughput, self.repair_bandwidth_percentage, self.disk_size, self.array_size, 
+            self.fs_trace, self.filelevel, self.dedup, self.weighted)
 
         self.more_iterations = self.iterations
         while True:
@@ -123,7 +131,7 @@ class Simulation:
                 break
 
             if self.more_iterations < 10000:
-                self.more_iterations = 10000L
+                self.more_iterations = 10000
 
             print >> sys.stderr, "%d more iterations to meet the requirement." % self.more_iterations
 

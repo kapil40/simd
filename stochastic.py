@@ -39,7 +39,7 @@ def test():
     v = 0
     for i in range(100000):
         v += w.draw()
-    print v/100000
+    print(v/100000)
 
 if __name__ == "__main__":
     test()

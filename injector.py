@@ -26,7 +26,7 @@ def inject(eventfile, model):
         for r in line.split():
             result = r.split("=")
             if result[0] is "I":
-                iteration = long(result[1])
+                iteration = int(result[1])
 
                 lse_samples.addZeros(iteration-lse_count)
                 raid_failure_samples.addZeros(iteration-raid_count)

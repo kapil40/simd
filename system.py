@@ -248,7 +248,7 @@ class System:
 	#RESULT_NOTHING_LOST = 0 #"Nothing Lost"
 	#RESULT_RAID_FAILURE = 1 #"RAID Failure"
 	#RESULT_SECTORS_LOST = 2 #"Sectors Lost"
-
+	
 	logger = logging.getLogger("sim")
 	
 
@@ -260,7 +260,7 @@ class System:
 		self.mission_time = mission_time
 		self.raid_num = raid_num
 		self.avail_raids = raid_num
-
+		self.fail_count = 0
 		self.logger.debug("System: mission_time = %d, raid_num = %d" % (self.mission_time, self.raid_num))
 
 		self.event_queue = None
@@ -302,7 +302,7 @@ class System:
 		return results
 
 	def go_to_next_event(self):
-
+		
 		while True:
 			if len(self.event_queue) == 0:
 				return None
@@ -311,9 +311,10 @@ class System:
 				break
 
 		# After update, the system state is consistent
-		(event_type, next_event_time, rebuild_time) = self.raids[raid_idx].update_to_event(event_time, disk_idx)
-		if event_type == "event disk fail":
-			print(event_type, next_event_time, rebuild_time)
+		(event_type, next_event_time, rebuild_time,res) = self.raids[raid_idx].update_to_event(event_time, disk_idx)
+		self.fail_count = res
+		# if event_type == "event disk fail":
+		# 	print(event_type, next_event_time, rebuild_time)
 		if next_event_time <= self.mission_time:
 			self.event_queue.append((next_event_time, disk_idx, raid_idx))
 			size = len(self.event_queue)
@@ -328,7 +329,7 @@ class System:
 	# [System.RESULT_RAID_FAILURE, bytes]
 	# [System.RESULT_SECTORS_LOST, bytes]
 	def run(self):
-
+		
 		while True:
 
 			e = self.go_to_next_event()
@@ -339,24 +340,26 @@ class System:
 
 			if event_type == Disk.DISK_EVENT_REPAIR:
 				continue
-
+			
 			# Check whether the failed disk causes a RAID failure 
 			if self.raids[raid_idx].check_failure(event_time) == True:
 				# TO-DO: When deduplication model is ready, we need to amplify bytes_lost
 				# e.g., bytes_lost * deduplication factor
+				# print("yes")
 				self.avail_raids -= 1
+				# print("test")
 				if self.avail_raids == 0:
 					break
 
 				continue
-
+				
 			# Check whether a LSE will cause a data loss
 			# check_sectors_lost will return the bytes of sector lost
 			# We need to further amplify it according to our file system
 			self.raids[raid_idx].check_sectors_lost(event_time)
-
+		# print(self.fail_count)
 		# The mission concludes or all RAIDs fail
-		return self.calc_bytes_lost()
+		return (self.calc_bytes_lost(),self.fail_count)
 
 	def get_df(self):
 		return self.dedup_model.df

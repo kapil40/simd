@@ -27,7 +27,7 @@ class Simulation:
         self.repair_bandwidth_percentage = repair_bandwidth_percentage
         self.disk_size = disk_size
         self.array_size = array_size
-
+        self.fail_count = 0
         self.logger.debug("Simulation: iterations = %d" % iterations)
 
         self.system = None
@@ -66,6 +66,8 @@ class Simulation:
         return (d, h, m, s)
 
     def run_iterations(self, iterations):
+        
+        c=0
         for self.cur_i in range(iterations):
 
             if (self.cur_i & 16383) == 0:
@@ -75,9 +77,10 @@ class Simulation:
 
 
             self.system.reset()
-        
-            result = self.system.run()
-
+            # c=c+1
+            # print(c)
+            result, count = self.system.run()
+            self.fail_count = count
             if result[0] != 0 or result[1] != 0:
                 self.systems_with_data_loss += 1
 
@@ -100,7 +103,7 @@ class Simulation:
 
             self.raid_failure_samples.addSample(result[0])
             self.lse_samples.addSample(result[1])
-
+        
         print("%6.2f%%: [" % (100.0), "\b= "*100, "\b\b>", "\b]", "%3dd%2dh%2dm%2ds" % self.get_runtime(), file=sys.stderr) 
 
     def simulate(self):
@@ -111,6 +114,7 @@ class Simulation:
             self.fs_trace, self.filelevel, self.dedup, self.weighted)
 
         self.more_iterations = self.iterations
+        start_time = time.time()
         while True:
 
             self.run_iterations(self.more_iterations)
@@ -122,26 +126,34 @@ class Simulation:
                 break
 
             if self.raid_failure_samples.value_re > self.lse_samples.value_re and self.raid_failure_samples.value_re > self.required_re:
-                self.more_iterations = long((self.raid_failure_samples.value_re/self.required_re - 1) * self.iterations)
-                print >> sys.stderr, "Since RAID FAILURE Relative Error %5f > %5f," % (self.raid_failure_samples.value_re, self.required_re),
+                self.more_iterations = int((self.raid_failure_samples.value_re/self.required_re - 1) * self.iterations)
+                print("Since RAID FAILURE Relative Error %5f > %5f," % (self.raid_failure_samples.value_re, self.required_re), file=sys.stderr)
+                # print >> sys.stderr, "Since RAID FAILURE Relative Error %5f > %5f," % (self.raid_failure_samples.value_re, self.required_re),
             elif self.lse_samples.value_re > self.required_re:
-                self.more_iterations = long((self.lse_samples.value_re/self.required_re - 1) * self.iterations)
-                print >> sys.stderr, "Since LSE Relative Error %5f > %5f," % (self.lse_samples.value_re, self.required_re),
+                self.more_iterations = int((self.lse_samples.value_re/self.required_re - 1) * self.iterations)
+                print("Since LSE Relative Error %5f > %5f," % (self.lse_samples.value_re, self.required_re), file=sys.stderr)
+                # print >> sys.stderr, "Since LSE Relative Error %5f > %5f," % (self.lse_samples.value_re, self.required_re),
             else:
                 break
 
             if self.more_iterations < 10000:
                 self.more_iterations = 10000
 
-            print >> sys.stderr, "%d more iterations to meet the requirement." % self.more_iterations
+            print("%d more iterations to meet the requirement." % self.more_iterations, file=sys.stderr)
 
             self.iterations += self.more_iterations
 
+        end_time = time.time()
+
+        elapsed_time = end_time - start_time
+
+        print(f"Elapsed time: {elapsed_time:.6f} seconds")
         if self.output is not None:
             print >>self.output, "I=%d"%self.iterations
             self.output.close()
 
         # finished, return results
         # the format of result:
+        print("Total Disks failures:", self.fail_count)
         return (self.system.dedup_model, self.raid_failure_samples, self.lse_samples, self.systems_with_data_loss, self.systems_with_raid_failures, 
                 self.systems_with_lse, self.iterations, self.system.get_df())

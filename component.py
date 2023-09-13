@@ -31,7 +31,7 @@ disk_lse_parms = %s, disk_scrubbing_parms = %s" %
 
         (rate) = disk_lse_parms
         self.disk_lse_dist = Poisson(rate)
-
+        
         # self.rebuild_bandwidth = max(disk_throughput, array_size * (disk_throughput * repair_bandwidth_percentage))
     
         # # Calculate the time to rebuild the disk based on its size and bandwidth
@@ -104,7 +104,7 @@ class Raid:
 
     RAID_STATE_OK = "ok"
     RAID_STATE_FAILED = "failed"
-
+    
     # A RAID consists of many disks
     def __init__(self, raid_type, disk_capacity, disk_fail_parms,
             disk_repair_parms, disk_lse_parms, disk_scrubbing_parms,
@@ -113,7 +113,7 @@ class Raid:
         (self.type, d, p) = raid_type.split("_");
         self.data_fragments = int(d)
         self.parity_fragments = int(p)
-
+        self.failure_count = 0
         # the capacity in byte is disk_capacity * SECTOR_SIZE
         self.disk_capacity = disk_capacity
 
@@ -179,7 +179,8 @@ class Raid:
 
         # We ignore the previously developed LSEs
         self.corrupted_area = self.critical_region 
-
+        self.failure_count += 1
+        # print(self.failure_count)
         return True             
 
     def check_sectors_lost(self, current_time):
@@ -224,6 +225,8 @@ class Raid:
         rebuild_time = 0
 
         if self.disks[disk_idx].is_failure() == True:
+            # self.failure_count += 1
+            # print(self.failure_count)
             next_event_time = self.upgrade(disk_idx)
             event_type = Disk.DISK_EVENT_REPAIR
             rebuild_time = self.disks[disk_idx].rebuild_time
@@ -234,7 +237,7 @@ class Raid:
             event_type = Disk.DISK_EVENT_FAIL
             rebuild_time = self.disks[disk_idx].rebuild_time
 
-        return (event_type, next_event_time,rebuild_time)
+        return (event_type, next_event_time,rebuild_time,self.failure_count)
 
 def test():
     d = Disk()

@@ -219,7 +219,7 @@ def get_parms():
         elif o in ("-o", "--output"):
             output_events = a
 
-    print(disk_throughput,repair_bandwidth_percentage,disk_size,array_size)
+    # print(disk_throughput,repair_bandwidth_percentage,disk_size,array_size)
 
     # TO-DO: We should verify these numbers
     # We assume larger disks will have longer repair and scrubbing time

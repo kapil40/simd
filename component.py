@@ -86,9 +86,8 @@ disk_lse_parms = %s, disk_scrubbing_parms = %s" %
         self.state = Disk.DISK_STATE_FAILED
 
         # self.repair_time = self.disk_repair_dist.draw() + self.fail_time
-        self.repair_time = self.rebuild_time + self.fail_time
-        # print(self.rebuild_time)
-        # print(self.disk_repair_dist.draw())
+        # self.repair_time = self.rebuild_time + self.fail_time    
+        self.repair_time = 50000 + self.fail_time
         self.repair_start_time = self.fail_time 
         self.fail_time = 0
         return self.repair_time

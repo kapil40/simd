@@ -307,12 +307,14 @@ class System:
 			if len(self.event_queue) == 0:
 				return None
 			(event_time, disk_idx, raid_idx) = self.event_queue.pop()
+			# print(self.event_queue)
 			if self.raids[raid_idx].state == Raid.RAID_STATE_OK:
 				break
 
 		# After update, the system state is consistent
 		(event_type, next_event_time, rebuild_time,res) = self.raids[raid_idx].update_to_event(event_time, disk_idx)
 		self.fail_count = res
+		# print(next_event_time)
 		# if event_type == "event disk fail":
 		# 	print(event_type, next_event_time, rebuild_time)
 		if next_event_time <= self.mission_time:
@@ -333,11 +335,12 @@ class System:
 		while True:
 
 			e = self.go_to_next_event()
+			
 			if e == None:
 				break
 
 			(event_type, event_time, raid_idx) = e
-
+			print(event_type)
 			if event_type == Disk.DISK_EVENT_REPAIR:
 				continue
 			

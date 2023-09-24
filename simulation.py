@@ -2,6 +2,8 @@ import sys
 import logging
 import datetime
 import time
+import numpy as np
+import matplotlib.pyplot as plt
 
 from system import *
 from statistics import *
@@ -42,6 +44,7 @@ class Simulation:
         self.systems_with_raid_failures = 0
         self.systems_with_lse = 0
         self.systems_with_data_loss = 0
+        self.samples=[]
 
         self.cur_i = 0
         self.more_iterations = 0
@@ -69,7 +72,7 @@ class Simulation:
         
         c=0
         for self.cur_i in range(iterations):
-
+            # print(self.cur_i)
             if (self.cur_i & 16383) == 0:
                 progress = 1.0*self.cur_i/self.iterations
                 num = int(progress * 100)
@@ -79,7 +82,10 @@ class Simulation:
             self.system.reset()
             # c=c+1
             # print(c)
-            result, count = self.system.run()
+            result, count, event_type, samples = self.system.run()
+            # self.queue.append(event_type)
+            self.samples = samples
+               
             self.fail_count = count
             if result[0] != 0 or result[1] != 0:
                 self.systems_with_data_loss += 1
@@ -87,6 +93,8 @@ class Simulation:
                 if result[0] != 0:
                     self.logger.debug("%dth iteration: %s, %d bytes lost" % (self.cur_i, "RAID Failure", result[0]))
                     self.systems_with_raid_failures += 1
+                    if(self.systems_with_raid_failures == 1):
+                        print("First failure at iteration: " + str(self.cur_i))
                     #print "%f" % result[0]
 
                     if self.output:
@@ -105,7 +113,30 @@ class Simulation:
             self.lse_samples.addSample(result[1])
         
         print("%6.2f%%: [" % (100.0), "\b= "*100, "\b\b>", "\b]", "%3dd%2dh%2dm%2ds" % self.get_runtime(), file=sys.stderr) 
+        mean = np.mean(samples)
+        median = np.median(samples)
 
+        if len(samples) == 0 or np.isnan(samples).any():
+            print("Samples array is empty or contains NaN. Cannot calculate mean and median.")
+        # Print mean and median
+        else:
+            print("Mean:", mean)
+            print("Median:", median)
+#         plt.hist(samples, bins=30, density=True, alpha=0.6, color='b', label='Histogram')
+
+# # Plot the PDF of the Weibull distribution
+#         x = np.linspace(0, np.max(samples), 1000)
+#         pdf = weibull_min.pdf(x, shape, loc=location, scale=scale)
+#         plt.plot(x, pdf, 'r-', lw=2, label='PDF')
+
+#         plt.xlabel('x')
+#         plt.ylabel('Probability Density')
+#         plt.title('Weibull Distribution')
+#         plt.legend()
+#         plt.grid(True)
+#         plt.show()
+        # print(self.samples)
+        # print(len(self.samples))
     def simulate(self):
 
         self.system = System(self.mission_time, self.raid_type, self.raid_num, self.disk_capacity, self.disk_fail_parms,
@@ -154,6 +185,6 @@ class Simulation:
 
         # finished, return results
         # the format of result:
-        print("Total Disks failures:", self.fail_count)
+        # print("Total Disks failures:", self.fail_count)
         return (self.system.dedup_model, self.raid_failure_samples, self.lse_samples, self.systems_with_data_loss, self.systems_with_raid_failures, 
-                self.systems_with_lse, self.iterations, self.system.get_df())
+                self.systems_with_lse, self.iterations, self.system.get_df(),self.samples)

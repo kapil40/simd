@@ -50,6 +50,7 @@ disk_lse_parms = %s, disk_scrubbing_parms = %s" %
         self.repair_start_time = 0 
 
         self.state = Disk.DISK_STATE_OK
+        
         # When will the disk fail
         self.fail_time = 0
 
@@ -71,11 +72,12 @@ disk_lse_parms = %s, disk_scrubbing_parms = %s" %
         return self.disk_scrubbing_dist.draw()
 
     def generate_sector_errors(self, time):
+        # print(self.disk_lse_dist.draw(time))
         return self.disk_lse_dist.draw(time)
 
     def repair(self):
         self.state = Disk.DISK_STATE_OK
-
+        # print(self.disk_fail_dist.draw())
         self.fail_time = self.disk_fail_dist.draw() + self.repair_time
         # print(self.fail_time)
         self.repair_time = 0
@@ -84,6 +86,8 @@ disk_lse_parms = %s, disk_scrubbing_parms = %s" %
 
     def fail(self):
         self.state = Disk.DISK_STATE_FAILED
+
+        # print(self.disk_fail_dist.shape,self.disk_fail_dist.scale)
 
         # self.repair_time = self.disk_repair_dist.draw() + self.fail_time
         # self.repair_time = self.rebuild_time + self.fail_time    
@@ -126,7 +130,7 @@ class Raid:
         # > 0 indicates the RAID is degraded
         self.failed_disk_count = 0
         self.failed_disk_bitmap = 0
-
+        self.samples = []
         self.critical_region = 0
 
         self.state = Raid.RAID_STATE_OK
@@ -213,6 +217,7 @@ class Raid:
 
     def upgrade(self, disk_idx):
         fail_time = self.disks[disk_idx].repair()
+        self.samples.append(fail_time)
         self.failed_disk_count -= 1
         self.failed_disk_bitmap = bm_rm(self.failed_disk_bitmap, disk_idx)
         self.critical_region = 0
@@ -236,7 +241,7 @@ class Raid:
             event_type = Disk.DISK_EVENT_FAIL
             rebuild_time = self.disks[disk_idx].rebuild_time
 
-        return (event_type, next_event_time,rebuild_time,self.failure_count)
+        return (event_type, next_event_time,rebuild_time,self.failure_count,self.samples)
 
 def test():
     d = Disk()

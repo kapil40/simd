@@ -261,8 +261,9 @@ class System:
 		self.raid_num = raid_num
 		self.avail_raids = raid_num
 		self.fail_count = 0
+		self.samples = []
 		self.logger.debug("System: mission_time = %d, raid_num = %d" % (self.mission_time, self.raid_num))
-
+		self.event_type_first = ""
 		self.event_queue = None
 
 		self.raids = [Raid(raid_type, disk_capacity, disk_fail_parms,
@@ -312,7 +313,8 @@ class System:
 				break
 
 		# After update, the system state is consistent
-		(event_type, next_event_time, rebuild_time,res) = self.raids[raid_idx].update_to_event(event_time, disk_idx)
+		(event_type, next_event_time, rebuild_time,res,samples) = self.raids[raid_idx].update_to_event(event_time, disk_idx)
+		self.samples = samples
 		self.fail_count = res
 		# print(next_event_time)
 		# if event_type == "event disk fail":
@@ -340,7 +342,8 @@ class System:
 				break
 
 			(event_type, event_time, raid_idx) = e
-			print(event_type)
+			# print(event_type)
+			self.event_type_first = event_type
 			if event_type == Disk.DISK_EVENT_REPAIR:
 				continue
 			
@@ -362,7 +365,7 @@ class System:
 			self.raids[raid_idx].check_sectors_lost(event_time)
 		# print(self.fail_count)
 		# The mission concludes or all RAIDs fail
-		return (self.calc_bytes_lost(),self.fail_count)
+		return (self.calc_bytes_lost(),self.fail_count,self.event_type_first,self.samples)
 
 	def get_df(self):
 		return self.dedup_model.df

@@ -7,7 +7,11 @@ import getopt
 
 from simulation import *
 from statistics import *
+import matplotlib.pyplot as plt
+from scipy.stats import weibull_min
 from system import *
+
+
 
 def usage(arg):
     print(arg, ": -h [--help] -l [--log] -m <mission_time> [--mission_time <mission_time>]")
@@ -230,7 +234,7 @@ def get_parms():
 
     if disk_fail_parms != None and disk_repair_parms != None and disk_lse_parms != None and disk_scrubbing_dist != None:
             parms = None
-
+    
     if parms == "Elerath2009":
         # data from [Elerath2009]
         disk_fail_parms = (1.2, 461386.0, 0)
@@ -239,7 +243,7 @@ def get_parms():
         disk_scrubbing_parms = (3, 168 * capacity_factor, 6 * capacity_factor)
     elif parms == "Elerath2014A":
         #data from [Elerath2014], SATA Disk A
-        disk_fail_parms = (1.13, 302016.0, 0)
+        disk_fail_parms = (1.13 , 302016.0 , 0)
         disk_repair_parms = (1.65, 22.7 * capacity_factor, 0)
         disk_lse_parms = (1.0/12325) 
         disk_scrubbing_parms = (1, 186 * capacity_factor, 0)
@@ -260,12 +264,13 @@ def get_parms():
             disk_throughput, repair_bandwidth_percentage, disk_size, array_size, force_re, required_re, 
             fs_trace, filelevel, dedup, weighted, output_events)
 
+
 def print_result(model, raid_failure_samples, lse_samples, systems_with_data_loss, 
-        systems_with_raid_failures, systems_with_lse, iterations, raid_type, raid_num, disk_capacity, df):
+        systems_with_raid_failures, systems_with_lse, iterations, raid_type, raid_num, disk_capacity, df,samples):
 
     (type, d, p) = raid_type.split("_");
     data_fragments = int(d)
-
+    # print(disk_fail_parms[0])
     total_capacity = data_fragments * disk_capacity * raid_num * 512/1024/1024/1024/1024 * df
 
     localtime = time.asctime(time.localtime(time.time()))
@@ -278,7 +283,7 @@ def print_result(model, raid_failure_samples, lse_samples, systems_with_data_los
             raid_failure_samples.prob_mean + raid_failure_samples.prob_ci, raid_failure_samples.prob_dev)
     value_result = (raid_failure_samples.value_mean, 100*raid_failure_samples.value_re, raid_failure_samples.value_mean - raid_failure_samples.value_ci, 
             raid_failure_samples.value_mean + raid_failure_samples.value_ci, raid_failure_samples.value_dev)
-
+    NOMDL = value_result[0]/total_capacity
     print("******** RAID Failure Part ***********")
     print("Probability of RAID Failures: %e +/- %f Percent , CI (%e,%e), StdDev: %e" % prob_result)
     if model.filelevel == False:
@@ -287,7 +292,7 @@ def print_result(model, raid_failure_samples, lse_samples, systems_with_data_los
         print("Fraction of Files Lost: %e +/- %f Percent, CI (%e,%e), StdDev: %e" % value_result)
     else:
         print("Fraction of Files Lost Weighted by Bytes: %e +/- %f Percent, CI (%e,%e), StdDev: %e" % value_result)
-
+    # print(lse_samples)
     prob_result = (lse_samples.prob_mean, 100*lse_samples.prob_re, lse_samples.prob_mean - lse_samples.prob_ci, 
             lse_samples.prob_mean + lse_samples.prob_ci, lse_samples.prob_dev)
     value_result = (lse_samples.value_mean, 100*lse_samples.value_re, lse_samples.value_mean - lse_samples.value_ci, 
@@ -295,8 +300,8 @@ def print_result(model, raid_failure_samples, lse_samples, systems_with_data_los
 
     print("************* LSE Part ***************")
     print("Probability of LSEs: %e +/- %f Percent , CI (%e,%e), StdDev: %e" % prob_result)
-
-    NOMDL = value_result[0]/total_capacity
+    # print(value_result[0],total_capacity)
+    # NOMDL = value_result[0]/total_capacity
     if model.filelevel == False:
         if model.weighted == False:
             print("# of Blocks/Chunks Lost: %e +/- %f Percent, CI (%f,%f), StdDev: %e" % value_result)
@@ -312,21 +317,38 @@ def print_result(model, raid_failure_samples, lse_samples, systems_with_data_los
             print("Size of Corrupted Files: %e +/- %f Percent, CI (%f,%f), StdDev: %e" % value_result)
             print("NOMDL (Normalized Magnitude of Data Loss): %e bytes per TB" % NOMDL)
     print("**************************************")
+    shape,scale,location = 1.13,302016.0,0
+    #Plot the histogram of the generated samples
+    # print(samples)
+    plt.hist(samples, bins=25, color='b',  label='Histogram')
+    # print(shape,scale,location)
+    # Plot the PDF of the Weibull distribution
+    # x = np.linspace(0, np.max(samples), 1000)
+    # pdf = weibull_min.pdf(x, shape, loc=location, scale=scale)
+    # plt.plot(x, pdf, 'r-', lw=2, label='PDF')
+    
+
+    plt.xlabel('Value')
+    plt.ylabel('Frequency')
+    plt.title('Weibull Distribution')
+    # plt.legend()
+    plt.grid(True)
+    # plt.show()
 
 def do_it():
 
     parms = get_parms()
     simulation = Simulation(*parms)
-
+    
     (model, raid_failure_samples, lse_samples, systems_with_data_loss, 
-            systems_with_raid_failures, systems_with_lse, iterations, df) = simulation.simulate()
+            systems_with_raid_failures, systems_with_lse, iterations, df, samples) = simulation.simulate()
     
     raid_type = parms[2]
     raid_num = parms[3]
     disk_capacity = parms[4]
 
     print_result(model, raid_failure_samples, lse_samples, systems_with_data_loss, 
-            systems_with_raid_failures, systems_with_lse, iterations, raid_type, raid_num, disk_capacity, df)
+            systems_with_raid_failures, systems_with_lse, iterations, raid_type, raid_num, disk_capacity, df,samples)
 
 def sig_quit(sig, frame):
 

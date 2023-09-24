@@ -1,5 +1,7 @@
 from math import *
 import random
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 class Weibull:
     def __init__(self, shape, scale, location=0):

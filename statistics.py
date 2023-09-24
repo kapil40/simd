@@ -69,7 +69,7 @@ class Samples:
         self.num_samples += 1
 
     def addZeros(self, num):
-        self.num_samples += long(num)
+        self.num_samples += int(num)
 
     #
     # Calculate the sample mean based on the samples for this instance
